@@ -3,11 +3,12 @@ const webhookUrl = "https://grzesioc.app.n8n.cloud/webhook/eb6b49ba-c422-48d1-bb
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
+const chatForm = document.querySelector('.chat-input');
 
 // Sicheres HTML-Rendering (um XSS zu verhindern)
 function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, m => (
-        { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]
+    return s.replace(/[&<>\"']/g, m => (
+        { '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;' }[m]
     ));
 }
 
@@ -28,18 +29,35 @@ function addMessage(text, sender, animate = true) {
         // Fügt die CSS-Animationsklasse hinzu
         messageDiv.classList.add('animating');
     }
-    
     messageDiv.innerHTML = renderMarkdownLite(text);
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight; // Zum Ende scrollen
 }
 
+// Skeleton Loader hinzufügen
+function addSkeletonLoader() {
+    const skeletonDiv = document.createElement('div');
+    skeletonDiv.classList.add('skeleton-loader');
+    skeletonDiv.setAttribute('aria-label', 'KI antwortet...');
+    skeletonDiv.id = 'skeleton-loader';
+    chatMessages.appendChild(skeletonDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Skeleton Loader entfernen
+function removeSkeletonLoader() {
+    const skeleton = document.getElementById('skeleton-loader');
+    if (skeleton) skeleton.remove();
+}
+
 // Simuliert das Senden einer Nachricht an den WebHook
 async function sendMessageToWebhook(message) {
-    // Deaktiviert den Button während der Verarbeitung
     sendButton.disabled = true;
 
-    // Thinking-UI erstellen und hinzufügen
+    // Skeleton Loader anzeigen
+    addSkeletonLoader();
+
+    // Thinking-UI erstellen und hinzufügen (bleibt für visuelle Rückmeldung)
     const thinkingMessageDiv = document.createElement('div');
     thinkingMessageDiv.classList.add('message', 'bot', 'thinking-message');
     thinkingMessageDiv.innerHTML = `
@@ -85,10 +103,10 @@ async function sendMessageToWebhook(message) {
             signal: ctrl.signal // Verbindung nach Timeout abbrechen
         });
 
-        // Aufräumen, unabhängig vom Erfolg
         clearTimeout(t);
         clearInterval(interval);
         thinkingMessageDiv.remove();
+        removeSkeletonLoader();
 
         if (!response.ok) {
             const txt = await response.text().catch(() => '');
@@ -101,7 +119,6 @@ async function sendMessageToWebhook(message) {
         let responseContent = '';
         if (ct.includes('application/json')) {
             const result = await response.json();
-            // Versuche, das erwartete Feld zu finden
             responseContent =
                 result.output ??
                 result.message ??
@@ -113,19 +130,19 @@ async function sendMessageToWebhook(message) {
 
         addMessage(responseContent || 'Leere Antwort erhalten.', 'bot');
     } catch (err) {
-        // Aufräumen bei Fehlern (z.B. Timeout oder Netzwerkfehler)
         clearTimeout(t);
         clearInterval(interval);
         thinkingMessageDiv.remove();
-        // Prüfen, ob der Fehler ein Abbruch war
+        removeSkeletonLoader();
         if (err.name === 'AbortError') {
-             addMessage('Zeitüberschreitung (90 Sekunden) beim Warten auf eine Antwort. Bitte versuche es noch einmal.', 'bot');
+            addMessage('Zeitüberschreitung (90 Sekunden) beim Warten auf eine Antwort. Bitte versuche es noch einmal.', 'bot');
         } else {
             addMessage('Verbindungsfehler oder unbekannter Fehler. Bitte nochmal versuchen.', 'bot');
             console.error(err);
         }
     } finally {
         sendButton.disabled = false;
+        messageInput.focus();
     }
 }
 
@@ -133,17 +150,19 @@ async function sendMessageToWebhook(message) {
 function handleSendMessage() {
     const message = messageInput.value.trim();
     if (message) {
-        // Füge die Benutzernachricht mit Animation hinzu
         addMessage(message, 'user');
-        // Sende die Nachricht an den WebHook
         sendMessageToWebhook(message);
         messageInput.value = '';
-        // Setzt die Höhe des Textfeldes zurück
         messageInput.style.height = '48px';
     }
 }
 
-// Ereignis-Listener: Klick auf Senden-Button
+// Ereignis-Listener: Klick auf Senden-Button oder Enter im Formular
+chatForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    handleSendMessage();
+});
+
 sendButton.addEventListener('click', handleSendMessage);
 
 // Ereignis-Listener: Enter-Taste (ohne Shift)
@@ -159,4 +178,3 @@ messageInput.addEventListener('input', () => {
     messageInput.style.height = 'auto';
     messageInput.style.height = messageInput.scrollHeight + 'px';
 });
-
