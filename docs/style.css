@@ -7,6 +7,24 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    border: 0;
+}
+
+/* Fokus-Styles (Accessibility) */
+.input-chat:focus, .button-send:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #3b82f6a0;
+}
+
 .chat-container {
     width: 100%;
     max-width: 600px;
@@ -69,6 +87,22 @@ body {
     align-items: center;
 }
 
+/* Skeleton Loader */
+.skeleton-loader {
+    width: 60%;
+    min-height: 40px;
+    margin-bottom: 0.5rem;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #262b39 25%, #30394e 50%, #262b39 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite linear;
+    align-self: flex-start;
+}
+@keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
 .input-chat {
     background-color: #1f2937;
     border: 1px solid #4b5563;
@@ -92,7 +126,7 @@ body {
     transition: background-color 0.2s, transform 0.1s;
 }
 
-.button-send:hover {
+.button-send:hover, .button-send:focus-visible {
     background-color: #4b5563;
     transform: translateY(-1px);
 }
@@ -107,7 +141,6 @@ body {
     cursor: not-allowed;
     transform: none;
 }
-
 
 .jarvis-title {
     font-size: 1.5rem;
@@ -217,4 +250,3 @@ body {
         padding: 0.5rem 1rem;
     }
 }
-
