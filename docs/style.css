@@ -250,3 +250,23 @@ body {
         padding: 0.5rem 1rem;
     }
 }
+/* Wasserzeichen-Hintergrund nur auf Desktop */
+@media (min-width: 769px) {
+  body::before {
+    content: "";
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 60vw;
+    height: 100vh;
+    background: url('jarvis-watermark.png') no-repeat left center;
+    background-size: auto 90vh; /* 3/4 Höhe */
+    opacity: 0.18;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .chat-container {
+    position: relative;
+    z-index: 1;
+  }
+}
