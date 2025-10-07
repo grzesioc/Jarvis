@@ -6,15 +6,6 @@ if (!localStorage.getItem('userId')) {
     localStorage.setItem('userId', userId);
 }
 
-// Funktion zum Senden von Nachrichten an n8n
-function sendMessage(message) {
-    const userId = localStorage.getItem('userId'); // Holt die User-ID aus localStorage
-    const payload = {
-        user: userId, // User-ID verwenden
-        message: message
-    };
-
-    // ... der restliche Code zum Senden des Payloads an n8n
 // Konfiguration
 const webhookUrl = "https://grzesioc.app.n8n.cloud/webhook/eb6b49ba-c422-48d1-bb86-196e80090a5e/chat";
 const messageInput = document.getElementById('message-input');
@@ -103,8 +94,9 @@ async function sendMessageToWebhook(message) {
     const t = setTimeout(() => ctrl.abort(), 90000);
 
     try {
+        const userId = localStorage.getItem('userId');
         const payload = {
-            user: "User",
+            user: userId || "User",
             message: message,
             request_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
             timestamp: new Date().toISOString()
