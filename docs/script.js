@@ -304,29 +304,18 @@ async function handleResumeSend() {
     resumePopupFeedback.textContent = '';
 
     try {
-        const userId = localStorage.getItem('userId');
-        const payload = {
-            user: userId || 'User',
-            message: replyText,
-            reply: replyText,
-            text: replyText,
-            output: replyText,
-            timestamp: new Date().toISOString()
-        };
-
         const response = await fetch(currentResumeUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ message: replyText })
         });
 
         if (!response.ok) {
             const txt = await response.text().catch(() => '');
-            const message = txt || response.statusText || 'Unbekannter Fehler';
-            throw new Error(message);
+            throw new Error(txt || response.statusText || 'Unbekannter Fehler');
         }
 
         hideResumePopup();
@@ -335,7 +324,7 @@ async function handleResumeSend() {
         console.error('Resume send error:', error);
         resumePopupSendButton.disabled = false;
         resumePopupSendButton.textContent = 'Senden';
-        resumePopupFeedback.textContent = `Antwort konnte nicht gesendet werden: ${error?.message || 'Unbekannter Fehler'}.`;
+        resumePopupFeedback.textContent = 'Antwort konnte nicht gesendet werden. Bitte versuche es erneut.';
     }
 }
 
