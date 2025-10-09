@@ -41,7 +41,24 @@ function sanitizeResumeUrl(url) {
     if (typeof url !== 'string') return null;
     const trimmed = url.trim();
     if (!trimmed) return null;
-    return trimmed.replace(/[)\]\}>,.;!?]+$/, '');
+
+    const validate = (candidate) => {
+        try {
+            // new URL(...) wirft bei ungültigen URLs einen Fehler
+            new URL(candidate);
+            return candidate;
+        } catch (error) {
+            return null;
+        }
+    };
+
+    const direct = validate(trimmed);
+    if (direct) {
+        return direct;
+    }
+
+    const softened = trimmed.replace(/[)\]\}>,.;!]+$/, '');
+    return validate(softened);
 }
 
 function addMessage(text, sender, animate = true, resumeUrlExplicit = null) {
@@ -304,18 +321,29 @@ async function handleResumeSend() {
     resumePopupFeedback.textContent = '';
 
     try {
+        const userId = localStorage.getItem('userId');
+        const formData = new URLSearchParams();
+        const timestamp = new Date().toISOString();
+
+        formData.set('user', userId || 'User');
+        formData.set('message', replyText);
+        formData.set('reply', replyText);
+        formData.set('text', replyText);
+        formData.set('output', replyText);
+        formData.set('timestamp', timestamp);
+
         const response = await fetch(currentResumeUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ message: replyText })
+            body: formData
         });
 
         if (!response.ok) {
             const txt = await response.text().catch(() => '');
-            throw new Error(txt || response.statusText || 'Unbekannter Fehler');
+            const message = txt || response.statusText || 'Unbekannter Fehler';
+            throw new Error(message);
         }
 
         hideResumePopup();
@@ -324,7 +352,7 @@ async function handleResumeSend() {
         console.error('Resume send error:', error);
         resumePopupSendButton.disabled = false;
         resumePopupSendButton.textContent = 'Senden';
-        resumePopupFeedback.textContent = 'Antwort konnte nicht gesendet werden. Bitte versuche es erneut.';
+        resumePopupFeedback.textContent = `Antwort konnte nicht gesendet werden: ${error?.message || 'Unbekannter Fehler'}.`;
     }
 }
 
