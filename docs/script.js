@@ -322,22 +322,22 @@ async function handleResumeSend() {
 
     try {
         const userId = localStorage.getItem('userId');
-        const payload = {
-            user: userId || 'User',
-            message: replyText,
-            reply: replyText,
-            text: replyText,
-            output: replyText,
-            timestamp: new Date().toISOString()
-        };
+        const formData = new URLSearchParams();
+        const timestamp = new Date().toISOString();
+
+        formData.set('user', userId || 'User');
+        formData.set('message', replyText);
+        formData.set('reply', replyText);
+        formData.set('text', replyText);
+        formData.set('output', replyText);
+        formData.set('timestamp', timestamp);
 
         const response = await fetch(currentResumeUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: formData
         });
 
         if (!response.ok) {
