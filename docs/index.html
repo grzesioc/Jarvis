@@ -33,6 +33,27 @@
             </form>
         </div>
     </main>
+    <div id="resume-popup-overlay" class="resume-popup-overlay" aria-hidden="true" role="dialog" aria-labelledby="resume-popup-title">
+        <div class="resume-popup-window" role="document">
+            <button id="resume-popup-close" class="resume-popup-close" type="button" aria-label="Fenster schließen">×</button>
+            <div class="resume-popup-heading">
+                <span class="resume-popup-icon" aria-hidden="true">❄️</span>
+                <div>
+                    <h2 id="resume-popup-title">Workflow-Antwort</h2>
+                    <p class="resume-popup-subtitle">Sende eine Nachricht zurück an deinen n8n-Workflow.</p>
+                </div>
+            </div>
+            <label class="sr-only" for="resume-popup-input">Antwortnachricht</label>
+            <textarea id="resume-popup-input" class="resume-popup-input" rows="4" placeholder="Hier deine Antwort eingeben..."></textarea>
+            <div class="resume-popup-actions">
+                <button id="resume-popup-send" class="resume-popup-send" type="button">
+                    <span aria-hidden="true">✉️</span>
+                    <span>Senden</span>
+                </button>
+            </div>
+            <p id="resume-popup-feedback" class="resume-popup-feedback" role="status" aria-live="polite"></p>
+        </div>
+    </div>
     <!-- Link zur ausgelagerten JavaScript-Datei -->
     <script src="script.js"></script>
 </body>
