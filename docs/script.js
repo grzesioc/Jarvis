@@ -7,7 +7,7 @@ if (!localStorage.getItem('userId')) {
 }
 
 // Konfiguration
-const webhookUrl = "https://grzesioc.app.n8n.cloud/webhook/eb6b49ba-c422-48d1-bb86-196e80090a5e/chat";
+const webhookUrl = "https://grzesioc.app.n8n.cloud/webhook/812d6061-c02d-44a5-895f-a61288096b4f/chat";
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
