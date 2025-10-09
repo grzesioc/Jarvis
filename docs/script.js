@@ -12,6 +12,13 @@ const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
 const chatForm = document.querySelector('.chat-input');
+const resumePopupOverlay = document.getElementById('resume-popup-overlay');
+const resumePopupInput = document.getElementById('resume-popup-input');
+const resumePopupSendButton = document.getElementById('resume-popup-send');
+const resumePopupCloseButton = document.getElementById('resume-popup-close');
+const resumePopupFeedback = document.getElementById('resume-popup-feedback');
+
+let currentResumeUrl = null;
 
 // Sicheres HTML-Rendering (um XSS zu verhindern)
 function escapeHtml(s) {
@@ -30,14 +37,68 @@ function renderMarkdownLite(s) {
 }
 
 // Funktion zum Hinzufügen einer Nachricht zum Chatverlauf
-function addMessage(text, sender, animate = true) {
+function sanitizeResumeUrl(url) {
+    if (typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    return trimmed.replace(/[)\]\}>,.;!?]+$/, '');
+}
+
+function addMessage(text, sender, animate = true, resumeUrlExplicit = null) {
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message', sender);
     if (animate) {
         // Fügt die CSS-Animationsklasse hinzu
         messageDiv.classList.add('animating');
     }
-    messageDiv.innerHTML = renderMarkdownLite(text);
+
+    let resumeUrl = resumeUrlExplicit ? sanitizeResumeUrl(resumeUrlExplicit) : null;
+    let displayText = typeof text === 'string' ? text : String(text ?? '');
+
+    if (sender === 'bot') {
+        let placeholderRemoved = false;
+        if (!resumeUrl) {
+            const urlMatch = displayText.match(/https?:\/\/[^\s<>"]+/);
+            if (urlMatch) {
+                resumeUrl = sanitizeResumeUrl(urlMatch[0]);
+                displayText = displayText.replace(urlMatch[0], '').trim();
+            }
+        }
+
+        const placeholderRegex = /\{\{\s*\$execution\.resumeUrl\s*\}\}/g;
+        if (placeholderRegex.test(displayText)) {
+            placeholderRemoved = true;
+            displayText = displayText.replace(placeholderRegex, '').trim();
+        }
+
+        if (!resumeUrl && placeholderRemoved) {
+            displayText = `${displayText ? `${displayText}\n\n` : ''}Die Resume-URL konnte nicht geladen werden.`;
+        }
+
+        if (!displayText && resumeUrl) {
+            displayText = 'Klicke auf den frostigen Button, um direkt auf den Workflow zu antworten.';
+        }
+    }
+
+    const messageText = document.createElement('div');
+    messageText.classList.add('message-text');
+    messageText.innerHTML = renderMarkdownLite(displayText);
+    messageDiv.appendChild(messageText);
+
+    if (sender === 'bot' && resumeUrl) {
+        const buttonWrapper = document.createElement('div');
+        buttonWrapper.classList.add('resume-button-wrapper');
+
+        const resumeButton = document.createElement('button');
+        resumeButton.type = 'button';
+        resumeButton.classList.add('resume-trigger-button');
+        resumeButton.innerHTML = '<span aria-hidden="true">❄️</span> Workflow antworten';
+        resumeButton.addEventListener('click', () => showResumePopup(resumeUrl));
+
+        buttonWrapper.appendChild(resumeButton);
+        messageDiv.appendChild(buttonWrapper);
+    }
+
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight; // Zum Ende scrollen
 }
@@ -126,18 +187,44 @@ async function sendMessageToWebhook(message) {
         // Response parsen
         const ct = response.headers.get('content-type') || '';
         let responseContent = '';
+        let resumeLink = null;
         if (ct.includes('application/json')) {
             const result = await response.json();
-            responseContent =
+            const possibleResumeKeys = [
+                'resumeUrl',
+                'resume_url',
+                'executionResumeUrl',
+                'execution_resume_url',
+                'resume'
+            ];
+
+            for (const key of possibleResumeKeys) {
+                if (typeof result?.[key] === 'string') {
+                    resumeLink = result[key];
+                    break;
+                }
+            }
+
+            const contentCandidate =
                 result.output ??
                 result.message ??
                 result.text ??
-                JSON.stringify(result, null, 2);
+                (typeof result === 'string' ? result : null);
+
+            if (typeof contentCandidate === 'string') {
+                responseContent = contentCandidate;
+            } else if (Array.isArray(contentCandidate)) {
+                responseContent = contentCandidate.join('\n');
+            } else if (typeof result.description === 'string') {
+                responseContent = result.description;
+            } else {
+                responseContent = JSON.stringify(result, null, 2);
+            }
         } else {
             responseContent = await response.text();
         }
 
-        addMessage(responseContent || 'Leere Antwort erhalten.', 'bot');
+        addMessage(responseContent || 'Leere Antwort erhalten.', 'bot', true, resumeLink);
     } catch (err) {
         clearTimeout(t);
         clearInterval(interval);
@@ -152,6 +239,92 @@ async function sendMessageToWebhook(message) {
     } finally {
         sendButton.disabled = false;
         messageInput.focus();
+    }
+}
+
+function showResumePopup(url) {
+    const safeUrl = sanitizeResumeUrl(url);
+    if (!safeUrl) {
+        addMessage('Die Resume-URL ist nicht gültig oder fehlt.', 'bot');
+        return;
+    }
+
+    if (!resumePopupOverlay || !resumePopupInput || !resumePopupSendButton || !resumePopupFeedback) {
+        console.warn('Resume-Popup konnte nicht geöffnet werden, da UI-Elemente fehlen.');
+        addMessage('Die Antwortfunktion steht derzeit nicht zur Verfügung.', 'bot');
+        return;
+    }
+
+    currentResumeUrl = safeUrl;
+    resumePopupOverlay.classList.add('visible');
+    resumePopupOverlay.removeAttribute('aria-hidden');
+    document.body.classList.add('resume-popup-open');
+    resumePopupInput.value = '';
+    resumePopupInput.focus();
+    resumePopupFeedback.textContent = '';
+    resumePopupSendButton.disabled = false;
+    resumePopupSendButton.textContent = 'Senden';
+}
+
+function hideResumePopup() {
+    if (!resumePopupOverlay || !resumePopupInput || !resumePopupSendButton || !resumePopupFeedback) {
+        return;
+    }
+
+    resumePopupOverlay.classList.remove('visible');
+    resumePopupOverlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('resume-popup-open');
+    currentResumeUrl = null;
+    resumePopupInput.value = '';
+    resumePopupFeedback.textContent = '';
+    resumePopupSendButton.disabled = false;
+    resumePopupSendButton.textContent = 'Senden';
+    messageInput.focus();
+}
+
+async function handleResumeSend() {
+    if (!resumePopupOverlay || !resumePopupInput || !resumePopupSendButton || !resumePopupFeedback) {
+        addMessage('Die Antwortfunktion steht derzeit nicht zur Verfügung.', 'bot');
+        return;
+    }
+
+    const replyText = resumePopupInput.value.trim();
+    if (!currentResumeUrl) {
+        resumePopupFeedback.textContent = 'Es ist keine gültige Antwort-URL vorhanden.';
+        return;
+    }
+
+    if (!replyText) {
+        resumePopupFeedback.textContent = 'Bitte gib eine Nachricht ein, bevor du sendest.';
+        return;
+    }
+
+    resumePopupSendButton.disabled = true;
+    resumePopupSendButton.textContent = 'Senden…';
+    resumePopupFeedback.textContent = '';
+
+    try {
+        const response = await fetch(currentResumeUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ message: replyText })
+        });
+
+        if (!response.ok) {
+            const txt = await response.text().catch(() => '');
+            throw new Error(txt || response.statusText || 'Unbekannter Fehler');
+        }
+
+        hideResumePopup();
+        addMessage('Antwort wurde erfolgreich an den Workflow gesendet.', 'bot');
+    } catch (error) {
+        console.error('Resume send error:', error);
+        resumePopupSendButton.disabled = false;
+        resumePopupSendButton.textContent = 'Senden';
+        resumePopupFeedback.textContent = 'Antwort konnte nicht gesendet werden. Bitte versuche es erneut.';
     }
 }
 
@@ -186,4 +359,35 @@ messageInput.addEventListener('keydown', (event) => {
 messageInput.addEventListener('input', () => {
     messageInput.style.height = 'auto';
     messageInput.style.height = messageInput.scrollHeight + 'px';
+});
+
+if (resumePopupSendButton) {
+    resumePopupSendButton.addEventListener('click', handleResumeSend);
+}
+
+if (resumePopupCloseButton) {
+    resumePopupCloseButton.addEventListener('click', hideResumePopup);
+}
+
+if (resumePopupInput) {
+    resumePopupInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            handleResumeSend();
+        }
+    });
+}
+
+if (resumePopupOverlay) {
+    resumePopupOverlay.addEventListener('click', (event) => {
+        if (event.target === resumePopupOverlay) {
+            hideResumePopup();
+        }
+    });
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && resumePopupOverlay?.classList.contains('visible')) {
+        hideResumePopup();
+    }
 });
