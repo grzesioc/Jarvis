@@ -7,7 +7,7 @@ if (!localStorage.getItem('userId')) {
 }
 
 // Konfiguration
-const webhookUrl = "https://monadelphous-laci-unremittently.ngrok-free.dev/webhook/f4da3383-8110-44e1-92ed-9811b7db8978/chat";
+const webhookUrl = "https://monadelphous-laci-unremittently.ngrok-free.dev/webhook/796d70ca-3e78-41cd-9817-6c4b344b5afa";
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
