@@ -7,7 +7,7 @@ if (!localStorage.getItem('userId')) {
 }
 
 // Konfiguration
-const webhookUrl = "https://grzesioc.app.n8n.cloud/webhook/5b09c900-b890-4c60-91b0-ff5945aba68e";
+const webhookUrl = "https://monadelphous-laci-unremittently.ngrok-free.dev/webhook/f4da3383-8110-44e1-92ed-9811b7db8978/chat";
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
